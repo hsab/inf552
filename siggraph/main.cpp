@@ -16,12 +16,17 @@
 using namespace std;
 using namespace cv;
 
+float cost(Point s, Point t, const Mat& A, const Mat& B) {
+    return norm(A.at<float>(s) - B.at<float>(s)) + norm(A.at<float>(t) - B.at<float>(t));
+}
+
 int main(int argc, const char * argv[]) {
     // Récupérer l'input
-    Mat input = imread("../strawberries.jpg");
+    Mat input = imread("../../strawberries.jpg");
     imshow("Input", input); waitKey();
     
     // Déterminer la taille de l'output
+    Mat output = Mat(480, 640, CV_32FC1);
     // Tant que l'output n'est pas complet
         // Positionner un premier patch
         // Découper le patch par graphcut
