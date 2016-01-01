@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		917E42551C36CE5000CC6E8B /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 917E42541C36CE5000CC6E8B /* main.cpp */; };
+		917E42631C36D17600CC6E8B /* graph.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 917E425E1C36D17600CC6E8B /* graph.cpp */; };
+		917E42641C36D17600CC6E8B /* instances.inc in Sources */ = {isa = PBXBuildFile; fileRef = 917E42601C36D17600CC6E8B /* instances.inc */; };
+		917E42651C36D17600CC6E8B /* maxflow.inc in Sources */ = {isa = PBXBuildFile; fileRef = 917E42611C36D17600CC6E8B /* maxflow.inc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -25,6 +28,13 @@
 /* Begin PBXFileReference section */
 		917E42511C36CE5000CC6E8B /* siggraph */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = siggraph; sourceTree = BUILT_PRODUCTS_DIR; };
 		917E42541C36CE5000CC6E8B /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
+		917E425C1C36D17600CC6E8B /* block.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = block.h; sourceTree = "<group>"; };
+		917E425D1C36D17600CC6E8B /* CHANGES.TXT */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = CHANGES.TXT; sourceTree = "<group>"; };
+		917E425E1C36D17600CC6E8B /* graph.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = graph.cpp; sourceTree = "<group>"; };
+		917E425F1C36D17600CC6E8B /* graph.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = graph.h; sourceTree = "<group>"; };
+		917E42601C36D17600CC6E8B /* instances.inc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.pascal; path = instances.inc; sourceTree = "<group>"; };
+		917E42611C36D17600CC6E8B /* maxflow.inc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.pascal; path = maxflow.inc; sourceTree = "<group>"; };
+		917E42621C36D17600CC6E8B /* README.TXT */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README.TXT; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,9 +67,24 @@
 		917E42531C36CE5000CC6E8B /* siggraph */ = {
 			isa = PBXGroup;
 			children = (
+				917E425B1C36D17600CC6E8B /* maxflow */,
 				917E42541C36CE5000CC6E8B /* main.cpp */,
 			);
 			path = siggraph;
+			sourceTree = "<group>";
+		};
+		917E425B1C36D17600CC6E8B /* maxflow */ = {
+			isa = PBXGroup;
+			children = (
+				917E425C1C36D17600CC6E8B /* block.h */,
+				917E425D1C36D17600CC6E8B /* CHANGES.TXT */,
+				917E425E1C36D17600CC6E8B /* graph.cpp */,
+				917E425F1C36D17600CC6E8B /* graph.h */,
+				917E42601C36D17600CC6E8B /* instances.inc */,
+				917E42611C36D17600CC6E8B /* maxflow.inc */,
+				917E42621C36D17600CC6E8B /* README.TXT */,
+			);
+			path = maxflow;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -118,7 +143,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				917E42631C36D17600CC6E8B /* graph.cpp in Sources */,
+				917E42651C36D17600CC6E8B /* maxflow.inc in Sources */,
 				917E42551C36CE5000CC6E8B /* main.cpp in Sources */,
+				917E42641C36D17600CC6E8B /* instances.inc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -207,6 +235,27 @@
 		917E42591C36CE5000CC6E8B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				HEADER_SEARCH_PATHS = /usr/local/include;
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_LDFLAGS = (
+					"-lopencv_calib3d",
+					"-lopencv_core",
+					"-lopencv_features2d",
+					"-lopencv_flann",
+					"-lopencv_highgui",
+					"-lopencv_imgcodecs",
+					"-lopencv_imgproc",
+					"-lopencv_ml",
+					"-lopencv_objdetect",
+					"-lopencv_photo",
+					"-lopencv_shape",
+					"-lopencv_stitching",
+					"-lopencv_superres",
+					"-lopencv_ts",
+					"-lopencv_video",
+					"-lopencv_videoio",
+					"-lopencv_videostab",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -214,6 +263,27 @@
 		917E425A1C36CE5000CC6E8B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				HEADER_SEARCH_PATHS = /usr/local/include;
+				LIBRARY_SEARCH_PATHS = /usr/local/lib;
+				OTHER_LDFLAGS = (
+					"-lopencv_calib3d",
+					"-lopencv_core",
+					"-lopencv_features2d",
+					"-lopencv_flann",
+					"-lopencv_highgui",
+					"-lopencv_imgcodecs",
+					"-lopencv_imgproc",
+					"-lopencv_ml",
+					"-lopencv_objdetect",
+					"-lopencv_photo",
+					"-lopencv_shape",
+					"-lopencv_stitching",
+					"-lopencv_superres",
+					"-lopencv_ts",
+					"-lopencv_video",
+					"-lopencv_videoio",
+					"-lopencv_videostab",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
