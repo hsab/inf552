@@ -6,5 +6,5 @@ INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 
 PROJECT(siggraph)
 
-ADD_EXECUTABLE(GC main.cpp maxflow/graph.cpp)
+ADD_EXECUTABLE(GC main.cpp maxflow/graph.cpp RandomPositionGenerator.cpp RandomPositionGenerator.h)
 TARGET_LINK_LIBRARIES(GC ${OpenCV_LIBS})
