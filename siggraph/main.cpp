@@ -18,6 +18,9 @@
 using namespace std;
 using namespace cv;
 
+//enumeration for patch placement mathode selection
+enum PatchPlacementMode{RANDOM, ALLMATCH, SUBMATCH};
+
 float cost(Point s, Point t, const Mat& A, const Mat& B) {
     return norm(A.at<float>(s) - B.at<float>(s)) + norm(A.at<float>(t) - B.at<float>(t));
 }
@@ -29,6 +32,29 @@ inline void getRandomPosition(const int patchX, const int patchY, const int outp
 	posY = rand() % (outputY - patchY + 1);
 }
 */
+
+/*	main function for texture generation
+	parameters:
+		String						inputTexturePath	path for input texture
+		int							outX				output width
+		int							outY				output height
+		PatchPlacementMode(enum)	mode				choice for patch placement methode
+		bool						randTransform		enable/disable random transformation(rotation/symetry) for patch
+	TODO:
+		implementation
+		add maxiteration argument and/or other end condition
+		add argument to pause everytime for a designated number of iterartions and show result
+		scaling?
+*/
+void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementMode mode, bool randTransform){
+	//read input
+	Mat input = imread(inputTexturePath);
+	imshow("Input texture", input); waitKey();
+	//TODO...
+	//precompute 8 patch transformations if needed
+	//iteration with designated patch placement methode until end requirement(maxiteration, low cost ...)
+	//display output
+}
 
 int main(int argc, const char * argv[]) {
 
@@ -43,8 +69,8 @@ int main(int argc, const char * argv[]) {
 		std::cout << posx << ", " << posy << "\n";
 	}
 //*/
-
-    // Récupérer l'input
+/*
+	// Récupérer l'input
     Mat input = imread("../../strawberries.jpg");
     imshow("Input", input); waitKey();
     
@@ -53,7 +79,8 @@ int main(int argc, const char * argv[]) {
     // Tant que l'output n'est pas complet
         // Positionner un premier patch
         // Découper le patch par graphcut
-    
+*/
+	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false);
     std::cout << "Hello, World!\n";
     return 0;
 }
