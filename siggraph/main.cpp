@@ -69,6 +69,30 @@ inline void calcPosition(int& i, int& o, int& l,int il, int ol){
 	}
 }
 
+//initial fill of output and cost arrays with repetition of input pattern
+void initialFill(const Mat& input, Mat& output, double* hCosts, double* vCosts){
+	int outX = output.cols, outY = output.rows,
+		inX = input.cols, inY = input.rows;
+	//initial fill of output with repetition of input pattern
+	for (int i = 0; i < outX; i++)
+		for (int j = 0; j < outY; j++)
+			output.at<Vec3b>(j, i) = input.at<Vec3b>(j%inY, i%inX);
+	//update horizontal edge cost array
+	for (int i = 0; i < outX - 1; i++)
+		for (int j = 0; j < outY; j++)
+			if (i%inX == inX - 1)
+				hCosts[i + j*(outX - 1)] = MAXVAL;
+			else
+				hCosts[i + j*(outX - 1)] = 0.;
+	//update vertical edge cost array
+	for (int i = 0; i < outX; i++)
+		for (int j = 0; j < outY - 1; j++)
+			if (j%inY == inY - 1)
+				hCosts[i + j*outX] = MAXVAL;
+			else
+				hCosts[i + j*outX] = 0.;
+}
+
 /*	main function for texture generation
 	parameters:
 		String						inputTexturePath	path for input texture
@@ -89,8 +113,7 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 	//read and show input
 	Mat input = imread(inputTexturePath);
 	cout << "input type: " << (input.type()==CV_8UC3?"8 bit RGB":"not 8 bit RGB") << "\n";
-	imshow("Input texture", input);
-	waitKey();
+	imshow("Input texture", input); waitKey();
 	int inX = input.cols, inY = input.rows;
 	//allocate output
 	Mat output(outY,outX,input.type());
@@ -98,10 +121,8 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 	Graph<double, double, double> gph(/*estimated # of nodes*/ inX*inY, /*estimated # of edges*/ 2 * inX*inY - inX - inY);
 	//allocate 2 arrays to store information of former cuts, one for horizontal edges, the other for vertical ones
 	double *hCosts = new double[(outX-1)*outY], *vCosts = new double[(outY-1)*outX];
-	//initial fill of output with repetition of input pattern
-	for (int i = 0; i < outX; i++)
-		for (int j = 0; j < outY; j++)
-			output.at<Vec3b>(j, i) = input.at<Vec3b>(j%inY,i%inX);
+	//initial fill of output and cost arrays with repetition of input pattern
+	initialFill(input, output, hCosts, vCosts);
 	//precompute 8 patch transformations if needed
 	//TODO
 
@@ -117,9 +138,8 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 			calcPosition(iPosY, oPosY, height, inY, outY);
 			outputUpdateGC(input, iPosX, iPosY, output, oPosX, oPosY, gph, hCosts, vCosts, width, height);
 			if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1){
-				imshow("actual output texture", output);
 				cout << "iteration: " << (i+1) << "\n";
-				waitKey();
+				imshow("actual output texture", output); waitKey();
 				//destroyWindow("actual output texture");
 			}
 		}
@@ -138,8 +158,7 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 	}
 	//display output
 	destroyWindow("actual output texture");
-	imshow("Final output texture", output); 
-	waitKey();
+	imshow("Final output texture", output); waitKey();
 	//delete dynamic array
 	delete[] hCosts,vCosts;
 }
