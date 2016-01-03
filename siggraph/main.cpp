@@ -4,13 +4,14 @@
 //
 //  Created by Camille MASSET on 01/01/2016.
 //  Copyright © 2016 Ecole polytechnique. All rights reserved.
-//
+// 
 
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <iostream>
 #include <fstream>
 #include <limits>
+#include <cmath>
 
 #include "RandomPositionGenerator.h"
 #include "maxflow/graph.h"
@@ -19,12 +20,41 @@ using namespace std;
 using namespace cv;
 
 //enumeration for patch placement mathode selection
-enum PatchPlacementMode{RANDOM, ALLMATCH, SUBMATCH};
+enum PatchPlacementMode{RANDOM, ALLMATCH, SUBPATCH};
 //maximum possible value for graph cut
 const double MAXVAL = numeric_limits<double>::has_infinity ? numeric_limits<double>::infinity() : numeric_limits<double>::max();
 
+/*
 float cost(Point s, Point t, const Mat& A, const Mat& B) {
-    return norm(A.at<float>(s) - B.at<float>(s)) + norm(A.at<float>(t) - B.at<float>(t));
+return norm(A.at<float>(s) - B.at<float>(s)) + norm(A.at<float>(t) - B.at<float>(t));
+}
+*/
+
+//Euclidian norm for a vector of 3 unsigned chars
+inline double norm(Vec3b v){
+	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+
+/*	cost function for 4 pixels
+parameters:
+Vec3b		vi1,vi2		pixels of the first image in position 1/2
+Vec3b		vo1,vo2		pixels of the second image in position 1/2
+*/
+inline double cost(Vec3b vi1, Vec3b vi2, Vec3b vo1, Vec3b vo2){
+	return norm(vi1 - vo1) + norm(vi2 - vo2);
+}
+
+/*	cost function with position coordinates
+parameters:
+const Mat&		input,output	input image (pattern)/output image
+int				iPosX,iPosY		position(upper-left corner) of the overlapping zone for input image
+int				oPosX,oPosY		position(upper-left corner) of the overlapping zone for output image
+int				x1,y1,x2,y2		coordinates of the first/second point in the overlapping zone
+*/
+inline double cost(const Mat& input, int iPosX, int iPosY, const Mat& output,int oPosX, int oPosY,
+	int x1, int y1, int x2, int y2){
+	return cost(input.at<Vec3b>(y1 + iPosY, x1 + iPosX), input.at<Vec3b>(y2 + iPosY, x2 + iPosX),
+		output.at<Vec3b>(y1 + oPosY, x1 + oPosX), output.at<Vec3b>(y2 + oPosY, x2 + oPosX));
 }
 
 /* Buggy for immense output size (output-patch > RAND_MAX), non-uniform distribution
@@ -35,6 +65,14 @@ inline void getRandomPosition(const int patchX, const int patchY, const int outp
 }
 */
 
+//structure registering cut information
+struct Cut{
+	//cost of cut
+	double cost;
+	//first(left/up) hidden pixel and second(right/down) pixel
+	Vec3b hiddenPix1, hiddenPix2;
+};
+
 /*	update output and edge costs with graph cut on a specified rectangular grid of pixels
 	parameters:
 	const Mat&		input			input image (pattern)
@@ -42,14 +80,146 @@ inline void getRandomPosition(const int patchX, const int patchY, const int outp
 	Mat&			output			output image
 	int				oPosX,oPosY		position(upper-left corner) of the overlapping zone for output image
 	Graph<..>&		gph				graph instance to be used for graph cut
-	double*			hCosts,vCosts	costs for horizontal/vertical edges
+	double*			hCuts,vCuts	costs for horizontal/vertical edges
 	int				width,height	width/height of the overlapping zone
 */
 void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPosX, int oPosY, 
-	Graph<double, double, double> &gph, double* hCosts, double* vCosts, int width, int height){
+	Graph<double, double, double> &gph, Cut* hCuts, Cut* vCuts, int width, int height){
 	gph.reset();
-	//TODO
-
+	int outX = output.cols, outY = output.rows,
+		inX = input.cols, inY = input.rows;
+	//add all pixels in overlapping zone as vertices
+	gph.add_node(width*height);
+	//add edges for terminals source(old output) and sink(new patching)
+	if (oPosX > 0)
+		for (int j = 0; j < height; j++)
+			gph.add_tweights(j*width, MAXVAL, 0.);
+	if (oPosX + width <= outX)
+		for (int j = 0; j < height; j++)
+			gph.add_tweights((j + 1)*width - 1, MAXVAL, 0.);
+	if (oPosY > 0)
+		for (int i = 0; i < width; i++)
+			gph.add_tweights(i, MAXVAL, 0.);
+	if (oPosY + height <= outY)
+		for (int i = 0; i < width; i++)
+			gph.add_tweights((height - 1)*width + i, MAXVAL, 0.);
+	//add edges between pixels
+	for (int i = 0; i < width - 1; i++)		//horizontal edges
+		for (int j = 0; j < height; j++)
+			if (hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost == 0){
+				double c = cost(input, iPosX, iPosY, output, oPosX, oPosY, i, j, i + 1, j);
+				gph.add_edge(i + j*width, i + j*width + 1, c, c);
+			}
+			else if (hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost == MAXVAL){
+				gph.add_tweights(i + j*width, 0., MAXVAL);
+				gph.add_tweights(i + j*width + 1, 0., MAXVAL);
+			}
+			else{
+				int id = gph.add_node();
+				gph.add_tweights(id, 0., hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost);
+				gph.add_edge(i + j*width, id, cost(
+					output.at<Vec3b>(j + oPosY, i + oPosX), 
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix2,
+					input.at<Vec3b>(j + iPosY, i + iPosX),
+					input.at<Vec3b>(j + iPosY, i + 1 + iPosX)
+					), MAXVAL);
+				gph.add_edge(i + j*width + 1, id, cost(
+					output.at<Vec3b>(j + oPosY, i + 1 + oPosX),
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix1,
+					input.at<Vec3b>(j + iPosY, i + 1 + iPosX),
+					input.at<Vec3b>(j + iPosY, i + iPosX)
+					), MAXVAL);
+			}
+	for (int i = 0; i < width; i++)			//vertical edges
+		for (int j = 0; j < height - 1; j++)
+			if (vCuts[i + oPosX + (j + oPosY)*outX].cost == 0){
+				double c = cost(input, iPosX, iPosY, output, oPosX, oPosY, i, j, i, j + 1);
+				gph.add_edge(i + j*width, i + (j + 1)*width, c, c);
+			}
+			else if (vCuts[i + oPosX + (j + oPosY)*outX].cost == MAXVAL){
+				gph.add_tweights(i + j*width, 0., MAXVAL);
+				gph.add_tweights(i + (j + 1)*width, 0., MAXVAL);
+			}
+			else{
+				int id = gph.add_node();
+				gph.add_tweights(id, 0., vCuts[i + oPosX + (j + oPosY)*outX].cost);
+				gph.add_edge(i + j*width, id, cost(
+					output.at<Vec3b>(j + oPosY, i + oPosX),
+					vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix2,
+					input.at<Vec3b>(j + iPosY, i + iPosX),
+					input.at<Vec3b>(j + 1 + iPosY, i + iPosX)
+					), MAXVAL);
+				gph.add_edge(i + (j + 1)*width, id, cost(
+					output.at<Vec3b>(j + 1 + oPosY, i + oPosX),
+					vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix1,
+					input.at<Vec3b>(j + 1 + iPosY, i + iPosX),
+					input.at<Vec3b>(j + iPosY, i + iPosX)
+					), MAXVAL);
+			}
+	//graph cut!!!
+	gph.maxflow();
+	//update edge costs
+	for (int i = 0; i < width - 1; i++)		//horizontal edges
+		for (int j = 0; j < height; j++){
+			if (gph.what_segment(i + width*j) == Graph<double, double, double>::SOURCE){
+				if (gph.what_segment(i + width*j + 1) == Graph<double, double, double>::SINK){
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = cost(
+						output.at<Vec3b>(j + oPosY, i + oPosX),
+						hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix2,
+						input.at<Vec3b>(j + iPosY, i + iPosX),
+						input.at<Vec3b>(j + iPosY, i + 1 + iPosX)
+						);
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix1 = input.at<Vec3b>(j + iPosY, i + iPosX);
+				}
+			}
+			else{
+				if (gph.what_segment(i + width*j + 1) == Graph<double, double, double>::SINK){
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = 0.;
+				}
+				else{
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = cost(
+						output.at<Vec3b>(j + oPosY, i + 1 + oPosX),
+						hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix1,
+						input.at<Vec3b>(j + iPosY, i + 1 + iPosX),
+						input.at<Vec3b>(j + iPosY, i + iPosX)
+						);
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix2 = input.at<Vec3b>(j + iPosY, i + 1 + iPosX);
+				}
+			}
+		}
+	for (int i = 0; i < width; i++)			//vertical edges
+		for (int j = 0; j < height - 1; j++){
+			if (gph.what_segment(i + width*j) == Graph<double, double, double>::SOURCE){
+				if (gph.what_segment(i + width*(j + 1)) == Graph<double, double, double>::SINK){
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = cost(
+						output.at<Vec3b>(j + oPosY, i + oPosX),
+						vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix2,
+						input.at<Vec3b>(j + iPosY, i + iPosX),
+						input.at<Vec3b>(j + 1 + iPosY, i + iPosX)
+						);
+					vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix1 = input.at<Vec3b>(j + iPosY, i + iPosX);
+				}
+			}
+			else{
+				if (gph.what_segment(i + width*(j + 1)) == Graph<double, double, double>::SINK){
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = 0.;
+				}
+				else{
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = cost(
+						output.at<Vec3b>(j + 1 + oPosY, i + oPosX),
+						vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix1,
+						input.at<Vec3b>(j + 1 + iPosY, i + iPosX),
+						input.at<Vec3b>(j + iPosY, i + iPosX)
+						);
+					vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix2 = input.at<Vec3b>(j + 1 + iPosY, i + iPosX);
+				}
+			}
+		}
+	//update output pixels
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			if (gph.what_segment(i + width*j) == Graph<double, double, double>::SINK)
+				output.at<Vec3b>(j + oPosY, i + oPosX) = input.at<Vec3b>(j + iPosY, i + iPosX);
 }
 
 //calculate position value
@@ -70,7 +240,7 @@ inline void calcPosition(int& i, int& o, int& l,int il, int ol){
 }
 
 //initial fill of output and cost arrays with repetition of input pattern
-void initialFill(const Mat& input, Mat& output, double* hCosts, double* vCosts){
+void initialFill(const Mat& input, Mat& output, Cut* hCuts, Cut* vCuts){
 	int outX = output.cols, outY = output.rows,
 		inX = input.cols, inY = input.rows;
 	//initial fill of output with repetition of input pattern
@@ -81,16 +251,16 @@ void initialFill(const Mat& input, Mat& output, double* hCosts, double* vCosts){
 	for (int i = 0; i < outX - 1; i++)
 		for (int j = 0; j < outY; j++)
 			if (i%inX == inX - 1)
-				hCosts[i + j*(outX - 1)] = MAXVAL;
+				hCuts[i + j*(outX - 1)].cost = MAXVAL;
 			else
-				hCosts[i + j*(outX - 1)] = 0.;
+				hCuts[i + j*(outX - 1)].cost = 0.;
 	//update vertical edge cost array
 	for (int i = 0; i < outX; i++)
 		for (int j = 0; j < outY - 1; j++)
 			if (j%inY == inY - 1)
-				hCosts[i + j*outX] = MAXVAL;
+				hCuts[i + j*outX].cost = MAXVAL;
 			else
-				hCosts[i + j*outX] = 0.;
+				hCuts[i + j*outX].cost = 0.;
 }
 
 /*	main function for texture generation
@@ -120,9 +290,9 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 	//define and allocate graph
 	Graph<double, double, double> gph(/*estimated # of nodes*/ inX*inY, /*estimated # of edges*/ 2 * inX*inY - inX - inY);
 	//allocate 2 arrays to store information of former cuts, one for horizontal edges, the other for vertical ones
-	double *hCosts = new double[(outX-1)*outY], *vCosts = new double[(outY-1)*outX];
+	Cut *hCuts = new Cut[(outX-1)*outY], *vCuts = new Cut[(outY-1)*outX];
 	//initial fill of output and cost arrays with repetition of input pattern
-	initialFill(input, output, hCosts, vCosts);
+	initialFill(input, output, hCuts, vCuts);
 	//precompute 8 patch transformations if needed
 	//TODO
 
@@ -136,7 +306,7 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 			rpg.changePosition(oPosX, oPosY);
 			calcPosition(iPosX, oPosX, width, inX, outX);
 			calcPosition(iPosY, oPosY, height, inY, outY);
-			outputUpdateGC(input, iPosX, iPosY, output, oPosX, oPosY, gph, hCosts, vCosts, width, height);
+			outputUpdateGC(input, iPosX, iPosY, output, oPosX, oPosY, gph, hCuts, vCuts, width, height);
 			if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1){
 				cout << "iteration: " << (i+1) << "\n";
 				imshow("actual output texture", output); waitKey();
@@ -151,7 +321,7 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 		cout << "Entire patch matching\n";
 		break;
 	//	Sub-patch matching
-	case SUBMATCH:
+	case SUBPATCH:
 		//TODO
 		cout << "Sub-patch matching\n";
 		break;
@@ -160,7 +330,7 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 	destroyWindow("actual output texture");
 	imshow("Final output texture", output); waitKey();
 	//delete dynamic array
-	delete[] hCosts,vCosts;
+	delete[] hCuts,vCuts;
 }
 
 int main(int argc, const char * argv[]) {
