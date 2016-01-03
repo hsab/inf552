@@ -336,6 +336,8 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 		RandomPositionGenerator rpg(inX, inY, outX, outY);
 		int iPosX, iPosY, oPosX, oPosY, width, height;
 		Mat outDisp;
+		imshow("initial output texture", output); waitKey();
+		//destroyWindow("initial output texture");
 		for (int i = 0; i < maxIter; i++){
 			rpg.changePosition(oPosX, oPosY);
 			calcPosition(iPosX, oPosX, width, inX, outX);
@@ -346,7 +348,6 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 				drawCuts(output, hCuts, vCuts, outDisp, 0);
 				imshow("actual output texture", outDisp); waitKey();
 				imshow("actual output texture", output); waitKey();
-				//destroyWindow("actual output texture");
 			}
 		}
 	}
@@ -393,6 +394,8 @@ int main(int argc, const char * argv[]) {
         // Positionner un premier patch
         // Découper le patch par graphcut
 //*/
-	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 100, 5);
+	//textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 100, 0);
+	textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
+	//textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
     return 0;
 }
