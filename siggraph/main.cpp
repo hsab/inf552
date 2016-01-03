@@ -12,6 +12,7 @@
 #include <fstream>
 #include <limits>
 #include <cmath>
+#include <algorithm>
 
 #include "RandomPositionGenerator.h"
 #include "maxflow/graph.h"
@@ -106,7 +107,7 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 	//add edges between pixels
 	for (int i = 0; i < width - 1; i++)		//horizontal edges
 		for (int j = 0; j < height; j++)
-			if (hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost == 0){
+			if (hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost == -1.){
 				double c = cost(input, iPosX, iPosY, output, oPosX, oPosY, i, j, i + 1, j);
 				gph.add_edge(i + j*width, i + j*width + 1, c, c);
 			}
@@ -132,7 +133,7 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 			}
 	for (int i = 0; i < width; i++)			//vertical edges
 		for (int j = 0; j < height - 1; j++)
-			if (vCuts[i + oPosX + (j + oPosY)*outX].cost == 0){
+			if (vCuts[i + oPosX + (j + oPosY)*outX].cost == -1.){
 				double c = cost(input, iPosX, iPosY, output, oPosX, oPosY, i, j, i, j + 1);
 				gph.add_edge(i + j*width, i + (j + 1)*width, c, c);
 			}
@@ -174,7 +175,7 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 			}
 			else{
 				if (gph.what_segment(i + width*j + 1) == Graph<double, double, double>::SINK){
-					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = 0.;
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = -1.;
 				}
 				else{
 					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = cost(
@@ -202,7 +203,7 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 			}
 			else{
 				if (gph.what_segment(i + width*(j + 1)) == Graph<double, double, double>::SINK){
-					vCuts[i + oPosX + (j + oPosY)*outX].cost = 0.;
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = -1.;
 				}
 				else{
 					vCuts[i + oPosX + (j + oPosY)*outX].cost = cost(
@@ -253,14 +254,46 @@ void initialFill(const Mat& input, Mat& output, Cut* hCuts, Cut* vCuts){
 			if (i%inX == inX - 1)
 				hCuts[i + j*(outX - 1)].cost = MAXVAL;
 			else
-				hCuts[i + j*(outX - 1)].cost = 0.;
+				hCuts[i + j*(outX - 1)].cost = -1.;
 	//update vertical edge cost array
 	for (int i = 0; i < outX; i++)
 		for (int j = 0; j < outY - 1; j++)
 			if (j%inY == inY - 1)
-				hCuts[i + j*outX].cost = MAXVAL;
+				vCuts[i + j*outX].cost = MAXVAL;
 			else
-				hCuts[i + j*outX].cost = 0.;
+				vCuts[i + j*outX].cost = -1.;
+}
+
+//draw cuts with specified thickness
+void drawCuts(const Mat& output, const Cut* hCuts, const Cut* vCuts, Mat& disp, int thickness){
+	int outX = output.cols, outY = output.rows;
+	disp = output.clone();
+	for (int i = 0; i < outX - 1; i++)
+		for (int j = 0; j < outY; j++){
+			if (hCuts[i + j*(outX - 1)].cost == MAXVAL){
+				for (int ii = max(i - thickness,0); ii < min(i + thickness + 2,outX); ii++)
+					for (int jj = max(j - thickness,0); jj < min(j + thickness + 1,outY); jj++)
+						disp.at<Vec3b>(jj, ii) = Vec3b(255, 0, 255);
+			}
+			else if (hCuts[i + j*(outX - 1)].cost > -1.){
+				for (int ii = max(i - thickness, 0); ii < min(i + thickness + 2, outX); ii++)
+					for (int jj = max(j - thickness, 0); jj < min(j + thickness + 1, outY); jj++)
+						disp.at<Vec3b>(jj, ii) = Vec3b(255, 255, 0);
+			}
+		}	
+	for (int i = 0; i < outX; i++)
+		for (int j = 0; j < outY - 1; j++){
+			if (vCuts[i + j*outX].cost == MAXVAL){
+				for (int ii = max(i - thickness, 0); ii < min(i + thickness + 1, outX); ii++)
+					for (int jj = max(j - thickness, 0); jj < min(j + thickness + 2, outY); jj++)
+						disp.at<Vec3b>(jj, ii) = Vec3b(255, 0, 255);
+			}
+			else if (vCuts[i + j*outX].cost > -1.){
+				for (int ii = max(i - thickness, 0); ii < min(i + thickness + 1, outX); ii++)
+					for (int jj = max(j - thickness, 0); jj < min(j + thickness + 2, outY); jj++)
+						disp.at<Vec3b>(jj, ii) = Vec3b(255, 255, 0);
+			}
+		}
 }
 
 /*	main function for texture generation
@@ -302,6 +335,7 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 	case RANDOM:{
 		RandomPositionGenerator rpg(inX, inY, outX, outY);
 		int iPosX, iPosY, oPosX, oPosY, width, height;
+		Mat outDisp;
 		for (int i = 0; i < maxIter; i++){
 			rpg.changePosition(oPosX, oPosY);
 			calcPosition(iPosX, oPosX, width, inX, outX);
@@ -309,6 +343,8 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 			outputUpdateGC(input, iPosX, iPosY, output, oPosX, oPosY, gph, hCuts, vCuts, width, height);
 			if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1){
 				cout << "iteration: " << (i+1) << "\n";
+				drawCuts(output, hCuts, vCuts, outDisp, 0);
+				imshow("actual output texture", outDisp); waitKey();
 				imshow("actual output texture", output); waitKey();
 				//destroyWindow("actual output texture");
 			}
@@ -357,6 +393,6 @@ int main(int argc, const char * argv[]) {
         // Positionner un premier patch
         // Découper le patch par graphcut
 //*/
-	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 100, 10);
+	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 100, 5);
     return 0;
 }
