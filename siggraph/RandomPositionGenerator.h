@@ -4,7 +4,7 @@
 #include <random>
 
 //generate Random position for any given sizes of patch and output 
-//part of the patch can be out out the output zone
+//part of the patch can be out of the output zone
 class RandomPositionGenerator{
 	
 	private:

@@ -399,7 +399,6 @@ void drawCuts(const Mat& output, const Cut* hCuts, const Cut* vCuts, Mat& disp, 
 
 	TODO:
 		implementation
-		add maxiteration argument and/or other end condition
 		transformation
 		scaling?
 */

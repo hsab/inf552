@@ -1,0 +1,17 @@
+1. Add choice for 8 transformations.
+
+2. implement the other 2 patch placement method.
+
+3. Adapting the Cost Function
+
+Maybe...
+
+1. Scaling
+
+2. add support for black-and-white images (uchar instead of Vec3b? template?)
+
+3. intelligent determination of iteration needed (satisfactory error rate?)
+
+2. FFT-acceleration?
+
+4. Feathering and multi-resolution splining?
