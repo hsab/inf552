@@ -32,7 +32,7 @@ return norm(A.at<float>(s) - B.at<float>(s)) + norm(A.at<float>(t) - B.at<float>
 */
 
 //Euclidian norm for a vector of 3 unsigned chars
-inline double norm(Vec3b v){
+double norm(Vec3b v){
 	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 }
 
@@ -41,7 +41,7 @@ parameters:
 Vec3b		vi1,vi2		pixels of the first image in position 1/2
 Vec3b		vo1,vo2		pixels of the second image in position 1/2
 */
-inline double cost(Vec3b vi1, Vec3b vi2, Vec3b vo1, Vec3b vo2){
+double cost(Vec3b vi1, Vec3b vi2, Vec3b vo1, Vec3b vo2){
 	return norm(vi1 - vo1) + norm(vi2 - vo2);
 }
 
@@ -52,7 +52,7 @@ int				iPosX,iPosY		position(upper-left corner) of the overlapping zone for inpu
 int				oPosX,oPosY		position(upper-left corner) of the overlapping zone for output image
 int				x1,y1,x2,y2		coordinates of the first/second point in the overlapping zone
 */
-inline double cost(const Mat& input, int iPosX, int iPosY, const Mat& output,int oPosX, int oPosY,
+double cost(const Mat& input, int iPosX, int iPosY, const Mat& output,int oPosX, int oPosY,
 	int x1, int y1, int x2, int y2){
 	return cost(input.at<Vec3b>(y1 + iPosY, x1 + iPosX), input.at<Vec3b>(y2 + iPosY, x2 + iPosX),
 		output.at<Vec3b>(y1 + oPosY, x1 + oPosX), output.at<Vec3b>(y2 + oPosY, x2 + oPosX));
@@ -60,7 +60,7 @@ inline double cost(const Mat& input, int iPosX, int iPosY, const Mat& output,int
 
 /* Buggy for immense output size (output-patch > RAND_MAX), non-uniform distribution
 //get patch and output size, generate random patch position (upper left corner pixel position)
-inline void getRandomPosition(const int patchX, const int patchY, const int outputX, const int outputY, int& posX, int& posY){
+void getRandomPosition(const int patchX, const int patchY, const int outputX, const int outputY, int& posX, int& posY){
 	posX = rand() % (outputX - patchX + 1);
 	posY = rand() % (outputY - patchY + 1);
 }
@@ -73,6 +73,27 @@ struct Cut{
 	//first(left/up) hidden pixel and second(right/down) pixel
 	Vec3b hiddenPix1, hiddenPix2;
 };
+
+//recursive function used by outputUpdateGC to clear unwanted zone in graph cut result
+void markAsOld(Mat& indicator, int x, int y){
+	if (x > 0 && indicator.at<uchar>(y, x - 1) == 127){
+		indicator.at<uchar>(y, x - 1) = 0;
+		markAsOld(indicator, x - 1, y);
+	}
+	if (x < indicator.cols - 1 && indicator.at<uchar>(y, x + 1) == 127){
+		indicator.at<uchar>(y, x + 1) = 0;
+		markAsOld(indicator, x + 1, y);
+	}
+	if (y > 0 && indicator.at<uchar>(y - 1, x) == 127){
+		indicator.at<uchar>(y - 1, x) = 0;
+		markAsOld(indicator, x, y - 1);
+	}
+	if (y < indicator.rows - 1 && indicator.at<uchar>(y + 1, x) == 127){
+		indicator.at<uchar>(y + 1, x) = 0;
+		markAsOld(indicator, x, y + 1);
+	}
+
+}
 
 /*	update output and edge costs with graph cut on a specified rectangular grid of pixels
 	parameters:
@@ -159,11 +180,14 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 			}
 	//graph cut!!!
 	gph.maxflow();
-	//update edge costs
+/*
+//	naive update taking all undefined zones as new parts (excessive part with artifacts)
+//	delete all 2nd argument of function what_segment (", Graph<double, double, double>::SINK") to discard all undefined zones (holes in new patch) 
+	//updatecuts
 	for (int i = 0; i < width - 1; i++)		//horizontal edges
 		for (int j = 0; j < height; j++){
-			if (gph.what_segment(i + width*j) == Graph<double, double, double>::SOURCE){
-				if (gph.what_segment(i + width*j + 1) == Graph<double, double, double>::SINK){
+			if (gph.what_segment(i + width*j, Graph<double, double, double>::SINK) == Graph<double, double, double>::SOURCE){
+				if (gph.what_segment(i + width*j + 1, Graph<double, double, double>::SINK) == Graph<double, double, double>::SINK){
 					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = cost(
 						output.at<Vec3b>(j + oPosY, i + oPosX),
 						hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix2,
@@ -174,7 +198,7 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 				}
 			}
 			else{
-				if (gph.what_segment(i + width*j + 1) == Graph<double, double, double>::SINK){
+				if (gph.what_segment(i + width*j + 1, Graph<double, double, double>::SINK) == Graph<double, double, double>::SINK){
 					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = -1.;
 				}
 				else{
@@ -190,8 +214,8 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 		}
 	for (int i = 0; i < width; i++)			//vertical edges
 		for (int j = 0; j < height - 1; j++){
-			if (gph.what_segment(i + width*j) == Graph<double, double, double>::SOURCE){
-				if (gph.what_segment(i + width*(j + 1)) == Graph<double, double, double>::SINK){
+			if (gph.what_segment(i + width*j, Graph<double, double, double>::SINK) == Graph<double, double, double>::SOURCE){
+				if (gph.what_segment(i + width*(j + 1), Graph<double, double, double>::SINK) == Graph<double, double, double>::SINK){
 					vCuts[i + oPosX + (j + oPosY)*outX].cost = cost(
 						output.at<Vec3b>(j + oPosY, i + oPosX),
 						vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix2,
@@ -202,7 +226,7 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 				}
 			}
 			else{
-				if (gph.what_segment(i + width*(j + 1)) == Graph<double, double, double>::SINK){
+				if (gph.what_segment(i + width*(j + 1), Graph<double, double, double>::SINK) == Graph<double, double, double>::SINK){
 					vCuts[i + oPosX + (j + oPosY)*outX].cost = -1.;
 				}
 				else{
@@ -219,12 +243,80 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 	//update output pixels
 	for (int i = 0; i < width; i++)
 		for (int j = 0; j < height; j++)
-			if (gph.what_segment(i + width*j) == Graph<double, double, double>::SINK)
+			if (gph.what_segment(i + width*j, Graph<double, double, double>::SINK) == Graph<double, double, double>::SINK)
 				output.at<Vec3b>(j + oPosY, i + oPosX) = input.at<Vec3b>(j + iPosY, i + iPosX);
+/*/
+//	for consistent graphcut result
+	//register node segmentation indication: 0-old 255-new 127-undefined
+	Mat indicator(height, width, CV_8U);
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			if (gph.what_segment(i + width*j, Graph<double, double, double>::SINK) == Graph<double, double, double>::SOURCE)
+				indicator.at<uchar>(j, i) = 0;
+			else if (gph.what_segment(i + width*j, Graph<double, double, double>::SOURCE) == Graph<double, double, double>::SINK)
+				indicator.at<uchar>(j, i) = 255;
+			else
+				indicator.at<uchar>(j, i) = 127;
+	//imshow("original cut result", indicator);
+	//mark all undefined zones adjacent with old part as old
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			if (indicator.at<uchar>(j, i) == 0)
+				markAsOld(indicator, i, j);
+	//imshow("clearing of grey zone", indicator);
+	//mark other undefined zones (inside new part) as new
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			if (indicator.at<uchar>(j, i) == 127)
+				indicator.at<uchar>(j, i) = 255;
+	//imshow("hole filled", indicator);
+	//update cuts
+	for (int i = 0; i < width - 1; i++)		//horizontal edges
+		for (int j = 0; j < height; j++){
+			if (indicator.at<uchar>(j, i) == 0){
+				if (indicator.at<uchar>(j, i + 1) == 255){
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = cost(output.at<Vec3b>(j + oPosY, i + oPosX),hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix2,input.at<Vec3b>(j + iPosY, i + iPosX),input.at<Vec3b>(j + iPosY, i + 1 + iPosX));
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix1 = input.at<Vec3b>(j + iPosY, i + iPosX);
+				}
+			}
+			else{
+				if (indicator.at<uchar>(j, i + 1) == 255){
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = -1.;
+				}
+				else{
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].cost = cost(output.at<Vec3b>(j + oPosY, i + 1 + oPosX),hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix1,input.at<Vec3b>(j + iPosY, i + 1 + iPosX),input.at<Vec3b>(j + iPosY, i + iPosX));
+					hCuts[i + oPosX + (j + oPosY)*(outX - 1)].hiddenPix2 = input.at<Vec3b>(j + iPosY, i + 1 + iPosX);
+				}
+			}
+		}
+	for (int i = 0; i < width; i++)			//vertical edges
+		for (int j = 0; j < height - 1; j++){
+			if (indicator.at<uchar>(j, i) == 0){
+				if (indicator.at<uchar>(j + 1, i) == 255){
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = cost(output.at<Vec3b>(j + oPosY, i + oPosX),vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix2,input.at<Vec3b>(j + iPosY, i + iPosX),input.at<Vec3b>(j + 1 + iPosY, i + iPosX));
+					vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix1 = input.at<Vec3b>(j + iPosY, i + iPosX);
+				}
+			}
+			else{
+				if (indicator.at<uchar>(j + 1, i) == 255){
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = -1.;
+				}
+				else{
+					vCuts[i + oPosX + (j + oPosY)*outX].cost = cost(output.at<Vec3b>(j + 1 + oPosY, i + oPosX),vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix1,input.at<Vec3b>(j + 1 + iPosY, i + iPosX),input.at<Vec3b>(j + iPosY, i + iPosX));
+					vCuts[i + oPosX + (j + oPosY)*outX].hiddenPix2 = input.at<Vec3b>(j + 1 + iPosY, i + iPosX);
+				}
+			}
+		}
+	//update pixels
+	for (int i = 0; i < width; i++)
+		for (int j = 0; j < height; j++)
+			if (indicator.at<uchar>(j, i) == 255)
+				output.at<Vec3b>(j + oPosY, i + oPosX) = input.at<Vec3b>(j + iPosY, i + iPosX);
+//*/
 }
 
 //calculate position value
-inline void calcPosition(int& i, int& o, int& l,int il, int ol){
+void calcPosition(int& i, int& o, int& l,int il, int ol){
 	if (o < 0){
 		i = -o;
 		l = il + o;
@@ -308,7 +400,7 @@ void drawCuts(const Mat& output, const Cut* hCuts, const Cut* vCuts, Mat& disp, 
 	TODO:
 		implementation
 		add maxiteration argument and/or other end condition
-		add argument to pause everytime for a designated number of iterartions and show result
+		transformation
 		scaling?
 */
 void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementMode mode, 
@@ -394,8 +486,8 @@ int main(int argc, const char * argv[]) {
         // Positionner un premier patch
         // Découper le patch par graphcut
 //*/
-	//textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 100, 0);
-	textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
-	//textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
+	//textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
+	//textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
+	textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
     return 0;
 }
