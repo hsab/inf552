@@ -1,0 +1,7 @@
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Debug/
+cmake_install.cmake
+siggraph.build/
+
