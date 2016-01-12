@@ -15,6 +15,7 @@
 #include <algorithm>
 
 #include "RandomPositionGenerator.h"
+#include "AllMatchPositionGenerator.hpp"
 #include "maxflow/graph.h"
 
 using namespace std;
@@ -478,10 +479,12 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
         }
             
         //	Entire patch matching
-        case ALLMATCH:
-            //TODO
+        case ALLMATCH: {
             cout << "Entire patch matching\n";
+            Mat mask = Mat::zeros(output.rows, output.cols, CV_8UC1);
+            AllMatchPositionGenerator ampg(input, output, mask, 0.01);
             break;
+        }
             
         //	Sub-patch matching
         case SUBPATCH:
@@ -499,7 +502,10 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
 
 int main(int argc, const char * argv[]) {
 
-//* Random Position Generator test/tutorial
+    /*
+     * Random Position Generator test/tutorial
+     */
+/*
 	//construct an rpg instance for a 8*10 patch and 16*15 output (size in X*Y) 
 	RandomPositionGenerator rpg(8, 10, 16, 15);
 	//declare two variables for position storage
@@ -509,9 +515,28 @@ int main(int argc, const char * argv[]) {
 		rpg.changePosition(posx, posy);
 		cout << posx << ", " << posy << "\n";
 	}
+ */
+    
+    /*
+     * All Match Position Generator test/tutorial
+     */
+    Mat input = imread("../../grass2.jpg");
+    Mat output = Mat::zeros(480, 640, input.type());
+    Mat mask = Mat::zeros(output.rows, output.cols, CV_8U);
+    for (int i = 0; i < input.cols; i++) {
+        for (int j = 0; j < input.rows; j++) {
+            output.at<Vec3b>(output.rows/2 - input.rows/2 + j, output.cols/2 - input.cols/2 + i) = input.at<Vec3b>(j, i);
+            mask.at<uchar>(output.rows/2 - input.rows/2 + j, output.cols/2 - input.cols/2 + i) = 255;
+        }
+    }
+//    imshow("input", input); waitKey();
+//    imshow("output", output); waitKey();
+//    imshow("mask", mask); waitKey();
+    AllMatchPositionGenerator ampg(input, output, mask, 0.01);
+    ampg.get_next_translation();
 
 	//textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
 	//textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
-	textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
+	//textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
     return 0;
 }
