@@ -538,5 +538,7 @@ int main(int argc, const char * argv[]) {
 	//textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
 	//textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
 	//textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
+	textureGenerator("../../bark.tiff", 640, 480, RANDOM, false, 200, 10);
+
     return 0;
 }
