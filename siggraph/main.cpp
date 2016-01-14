@@ -336,7 +336,8 @@ void outputUpdateGC(const Mat &input, int iPosX, int iPosY, Mat &output, int oPo
 }
 
 //calculate position value
-void calcPosition(int& i, int& o, int& l,int il, int ol) {
+void calcPosition(int& i, int& o, int& l, int il, int ol) {
+    cout << "AVANT : i: " << i << ". o: " << o << ". l: " << l << ". il: " << il << ". ol: " << ol << endl;
 	if (o < 0) {
 		i = -o;
 		l = il + o;
@@ -348,6 +349,7 @@ void calcPosition(int& i, int& o, int& l,int il, int ol) {
 		i = 0;
 		l = ol - o;
 	}
+    cout << "APRES : i: " << i << ". o: " << o << ". l: " << l << ". il: " << il << ". ol: " << ol << endl;
 }
 
 //initial fill of output and cost arrays with repetition of input pattern
@@ -436,15 +438,15 @@ void drawCuts(const Mat& output, const Cut* hCuts, const Cut* vCuts, Mat& disp, 
 		transformation
 		scaling?
 */
-void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementMode mode, 
-	bool randTransform, int maxIter, int pauseInterval){
+void textureGenerator(String inputTexturePath, int outX, int outY, PatchPlacementMode mode,
+	bool randTransform, int maxIter, int pauseInterval) {
 	//read and show input
 	Mat input = imread(inputTexturePath);
 	cout << "input type: " << (input.type()==CV_8UC3?"8 bit RGB":"not 8 bit RGB") << "\n";
 	imshow("Input texture", input); waitKey();
 	int inX = input.cols, inY = input.rows;
 	//allocate output
-	Mat output(outY,outX,input.type());
+	Mat output(outY, outX, input.type());
 	//define and allocate graph
 	Graph<double, double, double> gph(/*estimated # of nodes*/ inX*inY, /*estimated # of edges*/ 2 * inX*inY - inX - inY);
 	//allocate 2 arrays to store information of former cuts, one for horizontal edges, the other for vertical ones
@@ -483,6 +485,23 @@ void textureGenerator(String inputTexturePath,int outX,int outY, PatchPlacementM
             cout << "Entire patch matching\n";
             Mat mask = Mat::zeros(output.rows, output.cols, CV_8UC1);
             AllMatchPositionGenerator ampg(input, output, mask, 0.01);
+            int iPosX, iPosY, oPosX, oPosY, width, height;
+            Mat outDisp;
+            imshow("initial output texture", output); waitKey();
+            for (int i = 0; i < maxIter; i++) {
+                ampg.change_position(oPosX, oPosY);
+                calcPosition(iPosX, oPosX, width, inX, outX);
+                calcPosition(iPosY, oPosY, height, inY, outY);
+                cout << "width : " << width << endl;
+                cout << "height : " << height << endl;
+                outputUpdateGC(input, iPosX, iPosY, output, oPosX, oPosY, gph, hCuts, vCuts, width, height);
+                if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1) {
+                    cout << "iteration: " << (i+1) << "\n";
+                    drawCuts(output, hCuts, vCuts, outDisp, 0);
+                    imshow("actual output texture", outDisp); waitKey();
+                    imshow("actual output texture", output); waitKey();
+                }
+            }
             break;
         }
             
@@ -529,16 +548,11 @@ int main(int argc, const char * argv[]) {
             mask.at<uchar>(output.rows/2 - input.rows/2 + j, output.cols/2 - input.cols/2 + i) = 255;
         }
     }
-//    imshow("input", input); waitKey();
-//    imshow("output", output); waitKey();
-//    imshow("mask", mask); waitKey();
-    AllMatchPositionGenerator ampg(input, output, mask, 0.01);
-    ampg.get_next_translation();
 
-	//textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
+//	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
 	//textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
-	//textureGenerator("../../grass2.jpg", 640, 480, RANDOM, false, 200, 10);
-	textureGenerator("../../bark.tiff", 640, 480, RANDOM, false, 200, 10);
+//	textureGenerator("../../grass2.jpg", 640, 480, ALLMATCH, false, 200, 10);
+	textureGenerator("../../bark.tiff", 640, 480, ALLMATCH, false, 200, 10);
 
     return 0;
 }

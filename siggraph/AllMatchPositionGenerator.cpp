@@ -46,19 +46,22 @@ void AllMatchPositionGenerator::compute_cost(Point t) {
             }
         }
     }
-    
-    costs.at<float>(t) = c / At;
+    if (c == 0.0) {
+        costs.at<float>(t) = numeric_limits<float>::has_infinity ? numeric_limits<float>::infinity() : numeric_limits<float>::max();
+    } else {
+        costs.at<float>(t) = c / At;
+    }
 }
 
 void AllMatchPositionGenerator::compute_costs() {
-    for (int i = -input.cols+1; i < output.cols+input.cols-1; i++) {
-        for (int j = -input.rows+1; j < output.rows+input.rows-1; j++) {
+    for (int i = -input.cols+1; i < output.cols-1; i++) {
+        for (int j = -input.rows+1; j < output.rows-1; j++) {
             compute_cost(Point(i, j));
         }
     }
 }
 
-void AllMatchPositionGenerator::setup_generator() {
+int AllMatchPositionGenerator::setup_generator() {
     vector<float> init_array;
     for (int i = 0; i < probas.cols; i++) {
         for (int j = 0; j < probas.rows; j++) {
@@ -67,15 +70,14 @@ void AllMatchPositionGenerator::setup_generator() {
     }
     discrete_distribution<> dist(init_array.begin(), init_array.end());
     distrib = dist;
+    
+    return init_array.size();
 }
 
-Point AllMatchPositionGenerator::get_next_translation() {
+void AllMatchPositionGenerator::change_position(int &posX, int &posY) {
     compute_costs();
-    setup_generator();
+    int s = setup_generator();
     int pos = distrib(dre);
-    int j = pos % probas.rows;
-    int i = pos / probas.rows;
-    cout << "(" << i << ", " << j << ")" << endl;
-    
-    return Point(i, j);
+    posX = pos / probas.rows;
+    posY = pos % probas.rows;
 }

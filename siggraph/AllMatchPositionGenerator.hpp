@@ -29,14 +29,14 @@ private:
     std::discrete_distribution<> distrib;
     void compute_cost(cv::Point t);
     void compute_costs();
-    void setup_generator();
+    int setup_generator();
     
 public:
     //constructor
     AllMatchPositionGenerator(cv::Mat &input, cv::Mat &output, cv::Mat &mask, double k);
     
     //change to next translation
-    cv::Point get_next_translation();
+    void change_position(int& posX, int& posY);
 };
 
 #endif /* AllMatchPositionGenerator_hpp */
