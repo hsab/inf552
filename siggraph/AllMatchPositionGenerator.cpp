@@ -14,11 +14,11 @@
 using namespace std;
 using namespace cv;
 
-AllMatchPositionGenerator::AllMatchPositionGenerator(Mat &input, Mat &output, Mat &mask, double k) {
-    k = k;
-    input = input;
-    output = output;
-    mask = mask;
+AllMatchPositionGenerator::AllMatchPositionGenerator(Mat &input_m, Mat &output_m, Mat &mask_m, double kk) {
+    k = kk;
+    input = input_m;
+    output = output_m;
+    mask = mask_m;
     costs = Mat(output.rows + input.rows - 1, output.cols + input.cols - 1, CV_32FC1);
     probas = Mat(output.rows + input.rows - 1, output.cols + input.cols - 1, CV_32FC1);
     Scalar mean, stddev;
@@ -78,6 +78,8 @@ void AllMatchPositionGenerator::change_position(int &posX, int &posY) {
     compute_costs();
     int s = setup_generator();
     int pos = distrib(dre);
-    posX = pos / probas.rows;
-    posY = pos % probas.rows;
+    posX = pos / (probas.rows) - input.cols;
+    posY = pos % (probas.rows) - input.cols;
+    assert(posX < output.cols);
+    assert(posY < output.rows);
 }

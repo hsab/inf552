@@ -483,11 +483,16 @@ void textureGenerator(String inputTexturePath, int outX, int outY, PatchPlacemen
         //	Entire patch matching
         case ALLMATCH: {
             cout << "Entire patch matching\n";
-            Mat mask = Mat::zeros(output.rows, output.cols, CV_8UC1);
+            Mat mask = Mat::zeros(outY, outX, CV_8UC1);
             AllMatchPositionGenerator ampg(input, output, mask, 0.01);
             int iPosX, iPosY, oPosX, oPosY, width, height;
             Mat outDisp;
             imshow("initial output texture", output); waitKey();
+            width = inX;
+            height = inY;
+            iPosX = 0;
+            iPosY = 0;
+
             for (int i = 0; i < maxIter; i++) {
                 ampg.change_position(oPosX, oPosY);
                 calcPosition(iPosX, oPosX, width, inX, outX);
@@ -495,12 +500,19 @@ void textureGenerator(String inputTexturePath, int outX, int outY, PatchPlacemen
                 cout << "width : " << width << endl;
                 cout << "height : " << height << endl;
                 outputUpdateGC(input, iPosX, iPosY, output, oPosX, oPosY, gph, hCuts, vCuts, width, height);
-                if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1) {
+                // Update mask
+                for (int k = 0; k < width; k++) {
+                    for (int j = 0; j < height; j++) {
+                        mask.at<uchar>(oPosY + j, oPosX + k) = 255;
+                    }
+                }
+                imshow("mask", mask); waitKey();
+//                if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1) {
                     cout << "iteration: " << (i+1) << "\n";
                     drawCuts(output, hCuts, vCuts, outDisp, 0);
                     imshow("actual output texture", outDisp); waitKey();
                     imshow("actual output texture", output); waitKey();
-                }
+//                }
             }
             break;
         }
@@ -552,7 +564,7 @@ int main(int argc, const char * argv[]) {
 //	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
 	//textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
 //	textureGenerator("../../grass2.jpg", 640, 480, ALLMATCH, false, 200, 10);
-	textureGenerator("../../bark.tiff", 640, 480, ALLMATCH, false, 200, 10);
+	textureGenerator("../../bark.tiff", 320, 240, ALLMATCH, false, 200, 10);
 
     return 0;
 }

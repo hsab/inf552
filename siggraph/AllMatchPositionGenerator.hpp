@@ -33,7 +33,7 @@ private:
     
 public:
     //constructor
-    AllMatchPositionGenerator(cv::Mat &input, cv::Mat &output, cv::Mat &mask, double k);
+    AllMatchPositionGenerator(cv::Mat& input, cv::Mat& output, cv::Mat& mask, double k);
     
     //change to next translation
     void change_position(int& posX, int& posY);
