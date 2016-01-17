@@ -115,5 +115,37 @@ La zone de recouvrement entre un \emph{patch} et la sortie est donc toujours le 
 
 
 \section{Présentation des résultats.}
+On a exécuté le programme sur différents types d'entrée.
+On présente en figure~\vref{results} les résultats sur une image d'herbe (très aléatoire) et sur une image de fraises (plus structurée), avec le positionnement aléatoire.
+
+Pour l'herbe, on a l'échantillon d'entrée, puis une vue des \emph{cuts} au cours de l'exécution de l'algorithme.
+Enfin, on constate que le résultat final est plutôt bon, on ne distingue pas de coupures marquées dans l'image finale.
+
+En revanche pour les fraises, le résultat final est moins bon: on voit des coupures au milieu des fruits.
+Ceci est dû au fait que l'échantillon d'entrée possède une structure et que le positionnement aléatoire n'est pas adapté pour ce type d'entrée.
+L'image du milieu montre l'initialisation de la sortie obtenue par juxtaposition de l'entrée.
+
+\begin{figure}
+    \begin{center}
+        \null\hfill
+        \includegraphics[width=0.3\textwidth]{images/grass_input}
+        \hfill\hfill
+        \includegraphics[width=0.3\textwidth]{images/strawberries_input}
+        \hfill\null
+
+        \null\hfill
+        \includegraphics[width=0.45\textwidth]{images/grass_graphcuts}
+        \hfill\hfill
+        \includegraphics[width=0.45\textwidth]{images/strawberries_initial}
+        \hfill\null
+
+        \null\hfill
+        \includegraphics[width=0.45\textwidth]{images/grass_output}
+        \hfill\hfill
+        \includegraphics[width=0.45\textwidth]{images/strawberries_output}
+        \hfill\null
+    \end{center}
+    \caption{Résultats obtenus avec l'herbe et les fraises.\label{results}}
+\end{figure}
 
 \end{document}
