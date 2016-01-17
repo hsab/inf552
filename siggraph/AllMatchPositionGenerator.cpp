@@ -83,7 +83,7 @@ int AllMatchPositionGenerator::setup_generator() {
     }
     //discrete_distribution<> dist(init_array.begin(), init_array.end());	//visual c++ 2013 doesn't have this constructor... LOL
 	std::size_t ii(0);
-//	discrete_distribution<> dist(init_array.size(), 0., 1., [&init_array, &ii](float){return init_array[ii++];} );	//work around
+	discrete_distribution<> dist(init_array.size(), 0., 1., [&init_array, &ii](float){return init_array[ii++];} );	//work around
     distrib = dist;
     
     return init_array.size();
