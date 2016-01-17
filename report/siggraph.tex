@@ -36,7 +36,7 @@
 }
 
 \hypersetup{%
- pdftitle = {INF582 - Mini-projet 1},%
+ pdftitle = {INF552 - Graphcut textures},%
  pdfsubject = {},%
  pdfkeywords = {},%
  pdfcreator = {pdfLaTeX},%
@@ -54,140 +54,66 @@
 \renewcommand{\thefootnote}{(\roman{footnote})}
 \DeclareMathOperator{\sg}{sg}
 
-\title{Apprentissage de réseaux neuronaux}
-\subtitle{INF582 -- Mini-projet 1}
-\author{\textsc{Masset} Camille -- X2013}
+\title{Graphcut Textures}
+\subtitle{INF582}
+\author{\textsc{Masset} Camille \\ \textsc{Shen} Yuesong \\ X2013}
 \date{le \today}
 
 
 \begin{document}
 \renewcommand{\arraystretch}{1.5}
+\newcommand{\grc}{\emph{graph cuts}}
 
 \maketitle
 
-% Initialisation des poids aléatoires ? Tous nuls ?
-\section{Initialisation des poids.}
-On initialise les poids du réseau de neurones aléatoirement, suivant une distribution uniforme sur $(-\varepsilon, \varepsilon)$ (où $\varepsilon = \num{0.12}$).
-En effet, on ne peut pas les initialiser tous à la valeur nulle, sinon le réseau est condamné à ne jamais évoluer car les neurones cachés ont toujours le même comportement.
+\section{Rappel du sujet.}
+L'article \emph{Graphcut Textures: Image and Video Synthesis Using Graph Cuts} présente une technique
+pour synthétiser des textures à partir d'un petit échantillon, par exemple une étendue d'herbe ou une foule.
 
-Si tous poids sont initialisés à zéro, on obtient une précision de l'ordre de 35~\percent{}.
-Avec une initialisation aléatoire (et les paramètres précisés dans la section suivante), on a une précision d'environ 89~\percent{}.
+Une partie de l'échantillon est découpée selon un chemin optimal puis copiée sur l'image de sortie.
+Cette méthode se base essentiellement sur une technique de \grc{}.
 
-\section{Influence des paramètres.}
-Dans cette partie, on fait varier un à un les différents paramètres du réseau et on compare leur influence sur la précision de prédiction du réseau.
-Les valeurs \og{}canoniques\fg{} retenues des paramètres sont:
+
+\section{Implémentation de GraphCut.}
+L'image de sortie est associée à un graphe dans lequel chaque n\oe{}ud correspond à un pixel de l'image.
+Les arêtes du graphes relient des n\oe{}uds correspondant à des pixels conjoints.
+
+Pour les besoins de l'algorithme, on introduit une structure \verb|Cut| pour représenter un \emph{cut} précédent.
+Cette structure comporte trois attributs:
 \begin{itemize}
-    \item taille de l'ensemble d'entrainement: \num{6000};
-    \item taille de l'ensemble de test: \num{1000};
-    \item nombre de couches cachées: \num{1};
-    \item nombre de neurones par couche cachée: \num{15};
-    \item nombre d'itérations lors de la phase d'apprentissage: \num{50};
-    \item paramètre de régularisation: $\lambda = \num{3}$.
+    \item \verb|double cost|: le coût du \emph{cut};
+    \item \verb|Vec3b hiddenPix1|: le pixel qui a été masqué suite au \emph{cut};
+    \item \verb|Vec3b hiddenPix2|: le pixel qui a été conservé visible suite au \emph{cut}.
 \end{itemize}
-À chaque fois, on effectue quatre exécutions de l'apprentissage et du test pour obtenir une précision moyenne.
+On utilise alors deux tableaux de \verb|Cut|: un pour les coupes verticales et un pour les coupes horizontales.
 
-Pour ces paramètres, on obtient une précision moyenne de \num{90.7}.
+Une fois la position du \emph{patch} d'entrée choisie (voir sectino suivante), on met à jour le graphe et on cherche le flot maximal.
 
-\subsection{Influence de la taille de l'ensemble d'entrainement.}
-On fait varier la taille $N$ de l'ensemble d'entrainement, en gardant la proportion 6 entre entrainement et test.
-Les résultats sont présentés dans le tableau ci-dessous.
-\begin{center}
-    \begin{tabular}{|r|c|c|c|c|}
-        \hline
-        $N$ & 60 & 600 & \num{6000} & \num{60000} \\
-        \hline
-        précision & \num{62.5} & \num{87.8} & \num{90.7} & \num{92.1} \\
-        \hline
-    \end{tabular}
-\end{center}
-De façon prévisible, plus l'ensemble d'entrainement est grand, meilleure est la précision.
-Néanmoins, le temps d'apprentissage est particulièrement long pour $N = \num{60000}$, et la complexité des algorithmes n'est pas linéaire...
+Après avoir calculé le flot maximal, il faut déterminer les pixels à garder dans la zone de recouvrement entre le \emph{patch} et la sortie.
+On met ensuite à jour les tableaux de \verb|Cut|s puis les pixels de la sortie.
 
-\subsection{Influence du nombre de couches cachées.}
-On fait varier le nombre de couches de neurones \og{}cachées\fg{}, c'est-à-dire en plus des couches d'entrée et de sortie.
-Le nombre de neurones par couche reste constant et vaut 15.
-Les résultats sont présentés dans le tableau ci-dessous.
-\begin{center}
-    \begin{tabular}{|r|c|c|c|c|}
-        \hline
-        couches & 1 & 2 & 5 & 10 \\
-        \hline
-        précision & \num{90.7} & \num{87.6} & \num{11.9} & \num{11.2} \\
-        \hline
-    \end{tabular}
-\end{center}
-On voit que plus le nombre de couches augmente, plus la précision diminue.
-En effet, la somme des erreurs est initialement plus importante, et il faudrait faire tourner l'algorithme d'apprentissage plus longtemps pour optimiser les coefficients.
 
-On a également effectué un calcul avec 3 couches de 17 neurones chacune (donc 51 neurones au total).
-La précision obtenue est de \num{66.1}, ce qui est plus faible qu'avec 50 neurones sur une seule couche.
-Le nombre total de neurones ne détermine donc pas la précision: leur agencement joue aussi un rôle important.
+\section{Positionnement des \emph{patches}.}
+Avant d'appliquer la méthode de \grc{} à notre problème, il faut positionner un \emph{patch} de l'échantillon d'entrée.
+Plusieurs méthodes sont présentées dans l'article et nous en avons implémentées deux:
+une méthode complètement aléatoire et une méthode qui cherche à minimiser un coût sur toutes les positions possibles.
 
-\subsection{Influence du nombre de neurones par couche.}
-On fait ici varier le nombre de neurones par couche, en gardant une seule couche de neurones cachée.
-Les résultats sont présentés dans le tableau ci-dessous.
-\begin{center}
-    \begin{tabular}{|r|c|c|c|c|}
-        \hline
-        neurones/couche & 5 & 15 & 50 & 100 \\
-        \hline
-        précision & \num{72.9} & \num{90.7} & \num{93.0} & \num{89.2} \\
-        \hline
-    \end{tabular}
-\end{center}
-On observe un maximum de précision pour 50 neurones dans la couche cachée.
-Néanmoins, pour 15 neurones, on a une précision comparable et un temps de calcul moindre.
-Un nombre de neurones intermédiaire est certainement souhaitable~($\simeq~\num{30}$).
+\subsection{Positionnement aléatoire.}
+Cette méthode est la plus simple.
+On choisit aléatoirement une translation de l'échantillon d'entrée sur la sortie et on applique la méthode de \grc{} qui sélectionne une partie de cette échantillon.
+Cette méthode est plutôt rapide mais ne donne pas de très bons résultats si la texture est structurée (voir les exemples plus bas).
 
-\subsection{Trois couches de tailles différentes.}
-On a effectué l'apprentissage avec un réseau à 3 couches mais sans garder constant le nombre de neurones par couche.
-Le tableau ci-dessous présente la précision obtenue en fonction du triplet correspondant au nombre de neurones dans chacune des couches.
-\begin{center}
-    \begin{tabular}{|r|c|c|c|}
-        \hline
-        neurones/couche & [20, 50, 20] & [20, 50, 100] & [100, 50, 20] \\
-        \hline
-        précision & \num{13.0} & \num{12.3} & \num{12.5} \\
-        \hline
-    \end{tabular}
-\end{center}
-On note que les précisions obtenues sont tout aussi mauvaises que pour un modèle à plusieurs couches de même nombre de neurones.
-On préfèrera donc n'utiliser qu'une seule couche de neurones, de taille 50.
+\subsection{Positionnement par minimisation globale du coût.}
+On parcourt ici toutes les translations possibles de l'échantillon sur la sortie et on calcule le coût de cette translation.
+Ensuite, on utilise ces coûts pour établir une distribution de probabilité sur les translations et on effectue un tirage pour déterminer la translation retenue.
+Cette méthode est beaucoup plus coûteuse en temps que la précédente.
 
-\subsection{Influence du nombre d'itérations de l'apprentissage.}
-On fait ici varier le nombre d'itérations lors de la phase d'apprentissage du réseaux de neurones (optimisation des poids).
-Les résultats sont présentés dans le tableau ci-dessous.
-\begin{center}
-    \begin{tabular}{|r|c|c|c|c|}
-        \hline
-        neurones/couche & 10 & 50 & 100 & 400 \\
-        \hline
-        précision & \num{58.4} & \num{90.7} & \num{90.1} & \num{90.7} \\
-        \hline
-    \end{tabular}
-\end{center}
-Tous les autres paramètres étant fixés, la précision ne s'améliore pas lorsque le nombre d'itérations dépasse 50.
-C'est donc la précision maximale pour le jeu de paramètres choisi.
-Si on choisit plus judicieusement certains paramètres, cette précision maximale sera obtenue pour un nombre d'itérations différent.
+\subsection{Initialisation de la sortie.}
+Pour simplifier l'implémentation, on ne part jamais d'une sortie vide: on y place naïvement l'échantillon d'entrée répété en quadrillage.
+Afin de ne pas retenir les jonctions entre deux échantillons, on affecte un poids maximal, dans le graphe, entre deux pixels correspondant à des copies différentes de l'échantillon.
+La zone de recouvrement entre un \emph{patch} et la sortie est donc toujours le \emph{patch} entier, donc une forme rectangulaire.
 
-\subsection{Influence du paramètre de régularisation.}
-On fait ici varier le paramètre de régularisation $\lambda$.
-Les résultats sont présentés dans le tableau ci-dessous.
-\begin{center}
-    \begin{tabular}{|r|c|c|c|c|c|}
-        \hline
-        $\lambda$ & \num{0.0} & \num{0.5} & \num{3.0} & \num{10.0} & \num{100.0} \\
-        \hline
-        précision & \num{89.8} & \num{89.3} & \num{90.7} & \num{89.6} & \num{89.7} \\
-        \hline
-    \end{tabular}
-\end{center}
-Le paramètre de régularisation ne semble pas jouer de rôle majeur sur la précision du réseau de neurones.
 
-\section{Conclusion.}
-L'analyse de l'influence des différents paramètres nous montre qu'il est possible d'augmenter la précision du réseau de neurones en choisissant judicieusement certaines valeurs de paramètres.
-En revanche, cette précision a un coût: le temps nécessaire pour apprendre le réseau.
-Il faut donc trouver un équilibre entre ce qui importe le plus entre la précision et le temps de calcul.
-
+\section{Présentation des résultats.}
 
 \end{document}
