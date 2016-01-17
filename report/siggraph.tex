@@ -1,0 +1,193 @@
+\documentclass[a4paper, 12pt]{article}
+
+% Extension des capacités
+\usepackage{etex}
+
+% Mise en page
+% \usepackage[a4paper, left=1.5cm, right=1.5cm, top=2cm, bottom=2cm, heightrounded]{geometry}
+\usepackage{polytechnique}
+
+% Francisation du document
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[frenchb]{babel}
+
+\usepackage{float}
+\usepackage{caption}
+
+\usepackage{layout} % \layout au début de doc -> longueurs caractéristiques de la mise en page
+
+\usepackage{lmodern}
+\usepackage{eurosym}
+\usepackage[french]{varioref}
+
+\usepackage{amsmath, amsfonts, amssymb}
+\usepackage{mathrsfs}
+
+\usepackage{hyperref}
+\usepackage{siunitx}
+\sisetup{%
+ unitsep = \cdot,%
+ decimalsymbol = comma,%
+ expproduct = \cdot,%
+ seperr,%
+ trapambigerr = false,%
+ alsoload = hep%
+}
+
+\hypersetup{%
+ pdftitle = {INF582 - Mini-projet 1},%
+ pdfsubject = {},%
+ pdfkeywords = {},%
+ pdfcreator = {pdfLaTeX},%
+ pdfproducer = {pdfLaTeX},%
+ bookmarksnumbered = true,%
+ pdfstartview = FitH,%
+ pdfpagelayout = OneColumn,%
+ colorlinks = false,%
+ pdfborder = {0 0 0}%
+}
+
+\usepackage{xcolor}
+\usepackage[ensemblesGras]{mesfonctions}
+
+\renewcommand{\thefootnote}{(\roman{footnote})}
+\DeclareMathOperator{\sg}{sg}
+
+\title{Apprentissage de réseaux neuronaux}
+\subtitle{INF582 -- Mini-projet 1}
+\author{\textsc{Masset} Camille -- X2013}
+\date{le \today}
+
+
+\begin{document}
+\renewcommand{\arraystretch}{1.5}
+
+\maketitle
+
+% Initialisation des poids aléatoires ? Tous nuls ?
+\section{Initialisation des poids.}
+On initialise les poids du réseau de neurones aléatoirement, suivant une distribution uniforme sur $(-\varepsilon, \varepsilon)$ (où $\varepsilon = \num{0.12}$).
+En effet, on ne peut pas les initialiser tous à la valeur nulle, sinon le réseau est condamné à ne jamais évoluer car les neurones cachés ont toujours le même comportement.
+
+Si tous poids sont initialisés à zéro, on obtient une précision de l'ordre de 35~\percent{}.
+Avec une initialisation aléatoire (et les paramètres précisés dans la section suivante), on a une précision d'environ 89~\percent{}.
+
+\section{Influence des paramètres.}
+Dans cette partie, on fait varier un à un les différents paramètres du réseau et on compare leur influence sur la précision de prédiction du réseau.
+Les valeurs \og{}canoniques\fg{} retenues des paramètres sont:
+\begin{itemize}
+    \item taille de l'ensemble d'entrainement: \num{6000};
+    \item taille de l'ensemble de test: \num{1000};
+    \item nombre de couches cachées: \num{1};
+    \item nombre de neurones par couche cachée: \num{15};
+    \item nombre d'itérations lors de la phase d'apprentissage: \num{50};
+    \item paramètre de régularisation: $\lambda = \num{3}$.
+\end{itemize}
+À chaque fois, on effectue quatre exécutions de l'apprentissage et du test pour obtenir une précision moyenne.
+
+Pour ces paramètres, on obtient une précision moyenne de \num{90.7}.
+
+\subsection{Influence de la taille de l'ensemble d'entrainement.}
+On fait varier la taille $N$ de l'ensemble d'entrainement, en gardant la proportion 6 entre entrainement et test.
+Les résultats sont présentés dans le tableau ci-dessous.
+\begin{center}
+    \begin{tabular}{|r|c|c|c|c|}
+        \hline
+        $N$ & 60 & 600 & \num{6000} & \num{60000} \\
+        \hline
+        précision & \num{62.5} & \num{87.8} & \num{90.7} & \num{92.1} \\
+        \hline
+    \end{tabular}
+\end{center}
+De façon prévisible, plus l'ensemble d'entrainement est grand, meilleure est la précision.
+Néanmoins, le temps d'apprentissage est particulièrement long pour $N = \num{60000}$, et la complexité des algorithmes n'est pas linéaire...
+
+\subsection{Influence du nombre de couches cachées.}
+On fait varier le nombre de couches de neurones \og{}cachées\fg{}, c'est-à-dire en plus des couches d'entrée et de sortie.
+Le nombre de neurones par couche reste constant et vaut 15.
+Les résultats sont présentés dans le tableau ci-dessous.
+\begin{center}
+    \begin{tabular}{|r|c|c|c|c|}
+        \hline
+        couches & 1 & 2 & 5 & 10 \\
+        \hline
+        précision & \num{90.7} & \num{87.6} & \num{11.9} & \num{11.2} \\
+        \hline
+    \end{tabular}
+\end{center}
+On voit que plus le nombre de couches augmente, plus la précision diminue.
+En effet, la somme des erreurs est initialement plus importante, et il faudrait faire tourner l'algorithme d'apprentissage plus longtemps pour optimiser les coefficients.
+
+On a également effectué un calcul avec 3 couches de 17 neurones chacune (donc 51 neurones au total).
+La précision obtenue est de \num{66.1}, ce qui est plus faible qu'avec 50 neurones sur une seule couche.
+Le nombre total de neurones ne détermine donc pas la précision: leur agencement joue aussi un rôle important.
+
+\subsection{Influence du nombre de neurones par couche.}
+On fait ici varier le nombre de neurones par couche, en gardant une seule couche de neurones cachée.
+Les résultats sont présentés dans le tableau ci-dessous.
+\begin{center}
+    \begin{tabular}{|r|c|c|c|c|}
+        \hline
+        neurones/couche & 5 & 15 & 50 & 100 \\
+        \hline
+        précision & \num{72.9} & \num{90.7} & \num{93.0} & \num{89.2} \\
+        \hline
+    \end{tabular}
+\end{center}
+On observe un maximum de précision pour 50 neurones dans la couche cachée.
+Néanmoins, pour 15 neurones, on a une précision comparable et un temps de calcul moindre.
+Un nombre de neurones intermédiaire est certainement souhaitable~($\simeq~\num{30}$).
+
+\subsection{Trois couches de tailles différentes.}
+On a effectué l'apprentissage avec un réseau à 3 couches mais sans garder constant le nombre de neurones par couche.
+Le tableau ci-dessous présente la précision obtenue en fonction du triplet correspondant au nombre de neurones dans chacune des couches.
+\begin{center}
+    \begin{tabular}{|r|c|c|c|}
+        \hline
+        neurones/couche & [20, 50, 20] & [20, 50, 100] & [100, 50, 20] \\
+        \hline
+        précision & \num{13.0} & \num{12.3} & \num{12.5} \\
+        \hline
+    \end{tabular}
+\end{center}
+On note que les précisions obtenues sont tout aussi mauvaises que pour un modèle à plusieurs couches de même nombre de neurones.
+On préfèrera donc n'utiliser qu'une seule couche de neurones, de taille 50.
+
+\subsection{Influence du nombre d'itérations de l'apprentissage.}
+On fait ici varier le nombre d'itérations lors de la phase d'apprentissage du réseaux de neurones (optimisation des poids).
+Les résultats sont présentés dans le tableau ci-dessous.
+\begin{center}
+    \begin{tabular}{|r|c|c|c|c|}
+        \hline
+        neurones/couche & 10 & 50 & 100 & 400 \\
+        \hline
+        précision & \num{58.4} & \num{90.7} & \num{90.1} & \num{90.7} \\
+        \hline
+    \end{tabular}
+\end{center}
+Tous les autres paramètres étant fixés, la précision ne s'améliore pas lorsque le nombre d'itérations dépasse 50.
+C'est donc la précision maximale pour le jeu de paramètres choisi.
+Si on choisit plus judicieusement certains paramètres, cette précision maximale sera obtenue pour un nombre d'itérations différent.
+
+\subsection{Influence du paramètre de régularisation.}
+On fait ici varier le paramètre de régularisation $\lambda$.
+Les résultats sont présentés dans le tableau ci-dessous.
+\begin{center}
+    \begin{tabular}{|r|c|c|c|c|c|}
+        \hline
+        $\lambda$ & \num{0.0} & \num{0.5} & \num{3.0} & \num{10.0} & \num{100.0} \\
+        \hline
+        précision & \num{89.8} & \num{89.3} & \num{90.7} & \num{89.6} & \num{89.7} \\
+        \hline
+    \end{tabular}
+\end{center}
+Le paramètre de régularisation ne semble pas jouer de rôle majeur sur la précision du réseau de neurones.
+
+\section{Conclusion.}
+L'analyse de l'influence des différents paramètres nous montre qu'il est possible d'augmenter la précision du réseau de neurones en choisissant judicieusement certaines valeurs de paramètres.
+En revanche, cette précision a un coût: le temps nécessaire pour apprendre le réseau.
+Il faut donc trouver un équilibre entre ce qui importe le plus entre la précision et le temps de calcul.
+
+
+\end{document}

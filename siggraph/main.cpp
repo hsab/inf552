@@ -507,12 +507,12 @@ void textureGenerator(String inputTexturePath, int outX, int outY, PatchPlacemen
                     }
                 }
                 imshow("mask", mask); waitKey();
-//                if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1) {
+                if (pauseInterval > 0 && i%pauseInterval == pauseInterval - 1) {
                     cout << "iteration: " << (i+1) << "\n";
                     drawCuts(output, hCuts, vCuts, outDisp, 0);
                     imshow("actual output texture", outDisp); waitKey();
                     imshow("actual output texture", output); waitKey();
-//                }
+                }
             }
             break;
         }
@@ -564,7 +564,7 @@ int main(int argc, const char * argv[]) {
 //	textureGenerator("../../strawberries.jpg", 640, 480, RANDOM, false, 200, 10);
 	//textureGenerator("../../grass.jpg", 640, 480, RANDOM, false, 200, 10);
 //	textureGenerator("../../grass2.jpg", 640, 480, ALLMATCH, false, 200, 10);
-	textureGenerator("../../bark.tiff", 320, 240, ALLMATCH, false, 200, 10);
+	textureGenerator("../../bark.tiff", 320, 240, RANDOM, false, 200, 10);
 
     return 0;
 }
